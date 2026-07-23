@@ -1,0 +1,56 @@
+import { diseases } from "../data/diseases";
+
+export function diagnoseCrop(crop, selectedSymptoms, season) {
+  const normalizedSymptoms = selectedSymptoms.map((symptom) =>
+    symptom.toLowerCase().trim()
+  );
+
+  const matches = diseases
+    .filter(
+      (disease) =>
+        disease.crop.toLowerCase() === crop.toLowerCase() ||
+        disease.crop === "All"
+    )
+    .map((disease) => {
+      const matchingSymptoms = disease.symptoms.filter((symptom) =>
+        normalizedSymptoms.includes(symptom.toLowerCase())
+      );
+
+      const seasonMatches =
+        disease.season === season || disease.season === "All";
+
+      return {
+        ...disease,
+        matchScore: matchingSymptoms.length,
+        seasonMatches,
+      };
+    })
+    .filter((disease) => disease.matchScore > 0)
+    .sort((a, b) => b.matchScore - a.matchScore);
+
+  if (matches.length === 0) {
+    return {
+      found: false,
+      message:
+        "No clear match was found. Please upload a clear image and contact a nearby agriculture expert.",
+    };
+  }
+
+  const bestMatch = matches[0];
+  const confidence = Math.min(
+    95,
+    50 + bestMatch.matchScore * 15 + (bestMatch.seasonMatches ? 10 : 0)
+  );
+
+  return {
+    found: true,
+    diagnosis: bestMatch.name,
+    type: bestMatch.type,
+    confidence,
+    severity: bestMatch.severity,
+    causes: bestMatch.causes,
+    prevention: bestMatch.prevention,
+    treatment: bestMatch.treatment,
+    safetyNote: bestMatch.safetyNote,
+  };
+}
