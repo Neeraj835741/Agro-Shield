@@ -1,0 +1,13 @@
+export function getSeasonFromDate(dateValue) {
+  const month = new Date(dateValue).getMonth() + 1;
+
+  if (month >= 10 || month <= 3) {
+    return "Rabi";
+  }
+
+  if (month >= 6 && month <= 9) {
+    return "Kharif";
+  }
+
+  return "Zaid";
+}
