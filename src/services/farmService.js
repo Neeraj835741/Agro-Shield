@@ -1,11 +1,20 @@
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { auth, db } from "../firebase";
 
 export async function saveFarmProfile(profile) {
-  const documentReference = await addDoc(collection(db, "farmProfiles"), {
-    ...profile,
-    createdAt: serverTimestamp(),
-  });
+  const user = auth.currentUser;
 
-  return documentReference.id;
+  if (!user) {
+    throw new Error("Please log in before saving your farm profile.");
+  }
+
+  await setDoc(
+    doc(db, "users", user.uid),
+    {
+      ...profile,
+      email: user.email,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 }

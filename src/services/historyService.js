@@ -4,25 +4,17 @@ import {
   orderBy,
   query,
 } from "firebase/firestore";
-import { db } from "../firebase";
-
-export async function getFarmProfiles() {
-  const profilesQuery = query(
-    collection(db, "farmProfiles"),
-    orderBy("createdAt", "desc")
-  );
-
-  const snapshot = await getDocs(profilesQuery);
-
-  return snapshot.docs.map((document) => ({
-    id: document.id,
-    ...document.data(),
-  }));
-}
+import { auth, db } from "../firebase";
 
 export async function getHealthReports() {
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("Please log in to view health history.");
+  }
+
   const reportsQuery = query(
-    collection(db, "healthReports"),
+    collection(db, "users", user.uid, "healthReports"),
     orderBy("createdAt", "desc")
   );
 
