@@ -1,37 +1,38 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Sprout } from "lucide-react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "../firebase"; // Adjust this path if your firebase configuration file is located elsewhere
+import { auth } from "../firebase";
+import { useLanguage } from "../context/LanguageContext";
 
 function Navbar() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const { language, setLanguage, t } = useLanguage();
 
-  // Listen to Firebase authentication state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
-    return () => unsubscribe(); // Cleanup listener when component unmounts
+
+    return () => unsubscribe();
   }, []);
 
-  // Handle logging out
-  const handleLogout = async () => {
+  async function handleLogout() {
     try {
       await signOut(auth);
-      navigate("/"); // Redirect to homepage after logging out
+      navigate("/");
     } catch (error) {
-      console.error("Logout Error:", error);
+      console.error("Logout error:", error);
     }
-  };
+  }
 
   const linkStyle = {
     textDecoration: "none",
     color: "white",
     fontWeight: "500",
     fontSize: "15px",
-    padding: "8px 12px",
+    padding: "8px 10px",
     borderRadius: "8px",
     whiteSpace: "nowrap",
   };
@@ -44,10 +45,12 @@ function Navbar() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+        gap: "16px",
         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
         position: "sticky",
         top: 0,
         zIndex: 50,
+        flexWrap: "wrap",
       }}
     >
       <Link
@@ -79,31 +82,70 @@ function Navbar() {
             letterSpacing: "0.5px",
           }}
         >
-          AgroShield
+          {t("appName")}
         </span>
       </Link>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        <Link to="/" style={linkStyle}>Dashboard</Link>
-        <Link to="/profile" style={linkStyle}>My Farm</Link>
-        <Link to="/report" style={linkStyle}>Diagnosis</Link>
-        <Link to="/community" style={linkStyle}>Community</Link>
-        <Link to="/support" style={linkStyle}>Nearby Support</Link>
-        <Link to="/history" style={linkStyle}>Health History</Link>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          flexWrap: "wrap",
+        }}
+      >
+        <Link to="/" style={linkStyle}>
+          {t("home")}
+        </Link>
 
-        {/* CONDITIONAL RENDER: Show Logout if logged in, otherwise show Login */}
+        <Link to="/profile" style={linkStyle}>
+          {t("profile")}
+        </Link>
+
+        <Link to="/report" style={linkStyle}>
+          {t("reportProblem")}
+        </Link>
+
+        <Link to="/community" style={linkStyle}>
+          {t("community")}
+        </Link>
+
+        <Link to="/support" style={linkStyle}>
+          {t("experts")}
+        </Link>
+
+        <Link to="/history" style={linkStyle}>
+          {t("history")}
+        </Link>
+
+        <select
+          value={language}
+          onChange={(event) => setLanguage(event.target.value)}
+          aria-label="Choose language"
+          style={{
+            padding: "8px",
+            borderRadius: "8px",
+            border: "none",
+            color: "#166534",
+            fontWeight: "bold",
+            cursor: "pointer",
+          }}
+        >
+          <option value="en">English</option>
+          <option value="hi">हिंदी</option>
+        </select>
+
         {user ? (
           <button
             onClick={handleLogout}
             style={{
               border: "none",
               cursor: "pointer",
-              color: "#ef4444", // Red text to indicate logout
+              color: "#dc2626",
               backgroundColor: "white",
               fontWeight: "bold",
-              padding: "8px 20px",
+              padding: "8px 16px",
               borderRadius: "20px",
-              marginLeft: "12px",
               fontSize: "14px",
               whiteSpace: "nowrap",
             }}
@@ -118,9 +160,8 @@ function Navbar() {
               color: "#166534",
               backgroundColor: "white",
               fontWeight: "bold",
-              padding: "8px 20px",
+              padding: "8px 16px",
               borderRadius: "20px",
-              marginLeft: "12px",
               fontSize: "14px",
               whiteSpace: "nowrap",
             }}
