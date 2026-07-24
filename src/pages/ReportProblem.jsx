@@ -1,165 +1,233 @@
-import React, { useState, useRef } from "react";
-// Import commonSymptoms replacing the hard-coded symptomList
+import { useRef, useState } from "react";
 import { commonSymptoms } from "../data/symptoms";
-
-// Import required utility and service functions
 import { diagnoseCrop } from "../utils/diagnosisUtils";
 import { getSeasonFromDate } from "../utils/seasonUtils";
 import { saveHealthReport } from "../services/reportService";
-import { startVoiceRecognition } from "../utils/voiceUtils";
+import {
+  isVoiceRecognitionSupported,
+  startVoiceRecognition,
+} from "../utils/voiceUtils";
 
 function ReportProblem() {
   const [selectedCrop, setSelectedCrop] = useState("");
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [imagePreview, setImagePreview] = useState(null);
-  
-  // Real diagnosis state
+  const [imageName, setImageName] = useState("");
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+
   const [diagnosisResult, setDiagnosisResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
 
-  const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef(null);
 
-  // Handle local image upload preview ONLY 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+  const symptomList = Array.isArray(commonSymptoms) ? commonSymptoms : [];
+
+  function handleImageChange(event) {
+    const file = event.target.files[0];
+
     if (file) {
       setImagePreview(URL.createObjectURL(file));
+      setImageName(file.name);
     }
-  };
+  }
 
-  const handleRecordVoice = () => {
-    // 1. If we are already recording, force it to stop immediately!
+  function handleSymptomToggle(symptom) {
+    setSelectedSymptoms((previousSymptoms) =>
+      previousSymptoms.includes(symptom)
+        ? previousSymptoms.filter((item) => item !== symptom)
+        : [...previousSymptoms, symptom]
+    );
+  }
+
+  function handleRecordVoice() {
     if (isRecording && recognitionRef.current) {
       recognitionRef.current.stop();
-      return; // Exit early so we don't start a new one
+      return;
     }
 
-    // 2. Otherwise, start a new recording session
+    if (!isVoiceRecognitionSupported()) {
+      setSaveStatus(
+        "Voice input is unavailable in this browser. Please type your symptoms."
+      );
+      return;
+    }
+
     try {
       const recognitionInstance = startVoiceRecognition({
-        language: 'en-IN',
+        language: "en-IN",
+
         onStart: () => {
           setIsRecording(true);
+          setSaveStatus("Listening... Describe the crop problem.");
         },
+
         onResult: (transcript) => {
-          console.log("Heard:", transcript);
-          
-          if (transcript) {
-            const spokenWords = transcript.toLowerCase();
-            const matchedSymptoms = commonSymptoms.filter((symptom) => 
-              spokenWords.includes(symptom.toLowerCase())
-            );
-            
-            if (matchedSymptoms.length > 0) {
-              setSelectedSymptoms((prevSelected) => {
-                const allSymptoms = [...prevSelected, ...matchedSymptoms];
-                return [...new Set(allSymptoms)]; 
-              });
-            }
+          setVoiceTranscript(transcript);
+
+          const spokenWords = transcript.toLowerCase();
+
+          const matchedSymptoms = symptomList.filter((symptom) =>
+            spokenWords.includes(symptom.toLowerCase())
+          );
+
+          if (matchedSymptoms.length > 0) {
+            setSelectedSymptoms((previousSymptoms) => [
+              ...new Set([...previousSymptoms, ...matchedSymptoms]),
+            ]);
           }
+
+          setSaveStatus("Voice input captured.");
         },
-        onError: (errorMessage) => {
-          console.error("Voice error:", errorMessage);
+
+        onError: () => {
+          setSaveStatus(
+            "Voice input failed. Please type the symptoms in the text box."
+          );
         },
+
         onEnd: () => {
           setIsRecording(false);
-          recognitionRef.current = null; // Clear the memory when done
-        }
+          recognitionRef.current = null;
+        },
       });
 
-      // 3. Save the active microphone session to our ref so we can stop it later
       recognitionRef.current = recognitionInstance;
-
     } catch (error) {
-      alert(error.message);
+      setSaveStatus(error.message);
     }
-  };
+  }
 
-  // Toggle symptom selection
-  const handleSymptomToggle = (symptom) => {
-    if (selectedSymptoms.includes(symptom)) {
-      setSelectedSymptoms(selectedSymptoms.filter((s) => s !== symptom));
-    } else {
-      setSelectedSymptoms([...selectedSymptoms, symptom]);
-    }
-  };
+  async function handleRunDiagnosis(event) {
+    event.preventDefault();
 
-  // Run Diagnosis Logic
-  const handleRunDiagnosis = async (e) => {
-    e.preventDefault();
     if (!selectedCrop || selectedSymptoms.length === 0) {
-      alert("Please select a crop and at least one symptom.");
+      setSaveStatus("Please select a crop and at least one symptom.");
       return;
     }
 
     setIsSubmitting(true);
+    setDiagnosisResult(null);
     setSaveStatus("");
 
     try {
-      // Calculate current season
-      const currentSeason = getSeasonFromDate(new Date());
+      const currentSeason = getSeasonFromDate(new Date().toISOString());
 
-      // Call diagnoseCrop with input parameters
-      // Pass the arguments separately instead of inside an object
-      const result = diagnoseCrop(selectedCrop, selectedSymptoms, currentSeason);
+      const result = diagnoseCrop(
+        selectedCrop,
+        selectedSymptoms,
+        currentSeason
+      );
 
-      // Display real diagnosis results
       setDiagnosisResult(result);
 
-      // Save health report
       await saveHealthReport({
         crop: selectedCrop,
         symptoms: selectedSymptoms,
         season: currentSeason,
-        diagnosis: result.diagnosis,
-        confidence: result.confidence,
-        treatment: result.treatment,
-        prevention: result.prevention,
-        safetyNote: result.safetyNote,
-        createdAt: new Date().toISOString(),
+        voiceTranscript,
+        imageName,
+        diagnosis: result.found ? result.diagnosis : "No clear match",
+        confidence: result.confidence || null,
+        severity: result.severity || "",
+        treatment: result.treatment || "",
+        prevention: result.prevention || "",
+        safetyNote: result.safetyNote || "",
       });
 
-      setSaveStatus("Report saved successfully!");
+      setSaveStatus(
+        result.found
+          ? "Report saved successfully!"
+          : "Report saved. Please consult a nearby agriculture expert."
+      );
     } catch (error) {
       console.error("Diagnosis error:", error);
-      setSaveStatus("Failed to save report.");
+      setSaveStatus("Failed to save the report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }
 
   return (
     <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
-      <h1>Crop Health & Diagnosis Tool</h1>
-      <p>Select your crop and symptoms to identify potential issues.</p>
+      <h1 style={{ color: "#14532d" }}>Crop Health & Diagnosis Tool</h1>
 
-      <form onSubmit={handleRunDiagnosis} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-        
-        {/* Crop Selection */}
+      <p style={{ color: "#4b5563" }}>
+        Select your crop and symptoms to receive preliminary crop-health
+        guidance.
+      </p>
+
+      <form
+        onSubmit={handleRunDiagnosis}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px",
+          padding: "24px",
+          backgroundColor: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: "16px",
+        }}
+      >
         <div>
-          <label style={{ fontWeight: "bold", display: "block", marginBottom: "8px" }}>Select Crop:</label>
+          <label
+            style={{
+              fontWeight: "bold",
+              display: "block",
+              marginBottom: "8px",
+            }}
+          >
+            Select Crop
+          </label>
+
           <select
             value={selectedCrop}
-            onChange={(e) => setSelectedCrop(e.target.value)}
-            style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #ccc" }}
+            onChange={(event) => setSelectedCrop(event.target.value)}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: "8px",
+              border: "1px solid #ccc",
+            }}
           >
             <option value="">-- Choose Crop --</option>
             <option value="Wheat">Wheat</option>
             <option value="Rice">Rice</option>
             <option value="Tomato">Tomato</option>
             <option value="Cotton">Cotton</option>
-            <option value="Maize">Maize</option>
+            <option value="Potato">Potato</option>
           </select>
         </div>
 
-        {/* Symptoms Checklist using commonSymptoms */}
         <div>
-          <label style={{ fontWeight: "bold", display: "block", marginBottom: "8px" }}>Observed Symptoms:</label>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px" }}>
-            {commonSymptoms && commonSymptoms.map((symptom, idx) => (
-              <label key={idx} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
+          <label
+            style={{
+              fontWeight: "bold",
+              display: "block",
+              marginBottom: "8px",
+            }}
+          >
+            Observed Symptoms
+          </label>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+              gap: "10px",
+            }}
+          >
+            {symptomList.map((symptom) => (
+              <label
+                key={symptom}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  cursor: "pointer",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={selectedSymptoms.includes(symptom)}
@@ -171,50 +239,76 @@ function ReportProblem() {
           </div>
         </div>
 
-        {/* Local Image Upload & Preview Only */}
         <div>
-          <label style={{ fontWeight: "bold", display: "block", marginBottom: "8px" }}>Upload Photo (Preview Only):</label>
+          <label
+            style={{
+              fontWeight: "bold",
+              display: "block",
+              marginBottom: "8px",
+            }}
+          >
+            Upload Crop Photo
+          </label>
+
           <input type="file" accept="image/*" onChange={handleImageChange} />
+
           <p style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-            * Note: Photos are for visual preview; diagnosis is driven by symptom selections.
+            Photo preview is available now. Current diagnosis uses selected
+            symptoms; image AI will be added later.
           </p>
 
           {imagePreview && (
-            <div style={{ marginTop: "10px" }}>
-              <img
-                src={imagePreview}
-                alt="Crop Preview"
-                style={{ width: "150px", height: "150px", objectFit: "cover", borderRadius: "8px", border: "1px solid #ddd" }}
-              />
-            </div>
+            <img
+              src={imagePreview}
+              alt="Crop preview"
+              style={{
+                width: "150px",
+                height: "150px",
+                objectFit: "cover",
+                borderRadius: "8px",
+                border: "1px solid #ddd",
+              }}
+            />
           )}
         </div>
 
-        <button 
-          type="button" 
-          onClick={handleRecordVoice}
-          disabled={isRecording}
-          style={{ 
-            padding: "8px 16px", 
-            backgroundColor: isRecording ? "#ef4444" : "#0284c7", // Turns red when recording!
-            color: "white", 
-            borderRadius: "8px", 
-            border: "none", 
-            marginBottom: "15px",
-            cursor: isRecording ? "not-allowed" : "pointer",
-            fontWeight: "bold"
-          }}
-        >
-          {isRecording ? "🔴 Listening... Click to stop" : "🎤 Record Voice"}
-        </button>
+        <div>
+          <button
+            type="button"
+            onClick={handleRecordVoice}
+            style={{
+              padding: "10px 16px",
+              backgroundColor: isRecording ? "#ef4444" : "#0284c7",
+              color: "white",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            {isRecording ? "Listening... Click to stop" : "Record Voice"}
+          </button>
+        </div>
 
-        {/* Submit Button */}
+        <textarea
+          value={voiceTranscript}
+          onChange={(event) => setVoiceTranscript(event.target.value)}
+          placeholder="Voice transcript or additional symptoms will appear here."
+          style={{
+            width: "100%",
+            minHeight: "85px",
+            padding: "10px",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+          }}
+        />
+
         <button
           type="submit"
           disabled={isSubmitting}
           style={{
             padding: "12px 24px",
-            backgroundColor: "#166534",
+            backgroundColor: isSubmitting ? "#86efac" : "#166534",
             color: "white",
             border: "none",
             borderRadius: "8px",
@@ -227,39 +321,85 @@ function ReportProblem() {
         </button>
       </form>
 
-      {/* Results Display */}
-      {diagnosisResult && (
-        <div style={{ marginTop: "30px", padding: "20px", border: "1px solid #86efac", backgroundColor: "#f0fdf4", borderRadius: "12px" }}>
-          <h2 style={{ color: "#14532d", marginTop: 0 }}>{diagnosisResult.diagnosis}</h2>
-          
+      {saveStatus && (
+        <p
+          style={{
+            marginTop: "16px",
+            fontWeight: "bold",
+            color: saveStatus.includes("Failed") ? "#b91c1c" : "#166534",
+          }}
+        >
+          {saveStatus}
+        </p>
+      )}
+
+      {diagnosisResult && diagnosisResult.found && (
+        <div
+          style={{
+            marginTop: "30px",
+            padding: "20px",
+            border: "1px solid #86efac",
+            backgroundColor: "#f0fdf4",
+            borderRadius: "12px",
+          }}
+        >
+          <h2 style={{ color: "#14532d", marginTop: 0 }}>
+            Possible Issue: {diagnosisResult.diagnosis}
+          </h2>
+
           <p style={{ fontWeight: "bold", color: "#166534" }}>
             Match confidence: {diagnosisResult.confidence}%
           </p>
 
+          <p>
+            <strong>Severity:</strong> {diagnosisResult.severity}
+          </p>
+
           <div style={{ marginTop: "15px" }}>
-            <h3>Recommended Treatment:</h3>
+            <h3>Recommended Treatment</h3>
             <p>{diagnosisResult.treatment}</p>
           </div>
 
           <div style={{ marginTop: "15px" }}>
-            <h3>Prevention Advice:</h3>
+            <h3>Prevention Advice</h3>
             <p>{diagnosisResult.prevention}</p>
           </div>
 
           {diagnosisResult.safetyNote && (
-            <div style={{ marginTop: "15px", padding: "10px", backgroundColor: "#fef2f2", borderLeft: "4px solid #ef4444", color: "#991b1b" }}>
+            <div
+              style={{
+                marginTop: "15px",
+                padding: "10px",
+                backgroundColor: "#fef2f2",
+                borderLeft: "4px solid #ef4444",
+                color: "#991b1b",
+              }}
+            >
               <strong>Safety Note:</strong> {diagnosisResult.safetyNote}
             </div>
           )}
+        </div>
+      )}
 
-          {saveStatus && (
-            <p style={{ marginTop: "15px", fontSize: "14px", fontWeight: "bold", color: saveStatus.includes("successfully") ? "#15803d" : "#b91c1c" }}>
-              {saveStatus}
-            </p>
-          )}
+      {diagnosisResult && !diagnosisResult.found && (
+        <div
+          style={{
+            marginTop: "30px",
+            padding: "20px",
+            border: "1px solid #f59e0b",
+            backgroundColor: "#fffbeb",
+            borderRadius: "12px",
+          }}
+        >
+          <h2>No clear diagnosis found</h2>
+          <p>{diagnosisResult.message}</p>
+          <p>
+            Please contact a nearby agriculture expert for further guidance.
+          </p>
         </div>
       )}
     </div>
   );
 }
+
 export default ReportProblem;
