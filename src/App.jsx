@@ -9,6 +9,7 @@ import Alerts from "./pages/Alerts";
 import HealthHistory from "./pages/HealthHistory";
 import Experts from "./pages/Experts";
 import Community from "./pages/Community";
+import Auth from "./pages/Auth";
 
 function App() {
   return (
@@ -20,11 +21,12 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/profile" element={<FarmerProfile />} />
           <Route path="/crop-calendar" element={<CropCalendar />} />
-          <Route path="/report-problem" element={<ReportProblem />} />
+         <Route path="/report" element={<ReportProblem />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/health-history" element={<HealthHistory />} />
-          <Route path="/experts" element={<Experts />} />
+        <Route path="/support" element={<Experts />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/auth" element={<Auth />} />
         </Routes>
       </main>
     </BrowserRouter>
