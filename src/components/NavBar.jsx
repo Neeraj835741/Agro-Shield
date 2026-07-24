@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Sprout } from "lucide-react";
@@ -33,7 +32,7 @@ function Navbar() {
     color: "white",
     fontWeight: "500",
     fontSize: "15px",
-    padding: "8px 12px",
+    padding: "6px 8px",
     borderRadius: "8px",
     whiteSpace: "nowrap",
   };
@@ -46,8 +45,8 @@ function Navbar() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: "16px",
-        flexWrap: "wrap",
+        gap: "10px",
+        flexWrap: "nowrap",
         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
         position: "sticky",
         top: 0,
@@ -85,8 +84,9 @@ function Navbar() {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "8px",
-          flexWrap: "wrap",
+          gap: "4px",
+          flexWrap: "nowrap",
+          marginLeft: "auto",
         }}
       >
         <Link to="/" style={linkStyle}>{t("home")}</Link>
@@ -101,7 +101,7 @@ function Navbar() {
           onChange={(event) => setLanguage(event.target.value)}
           aria-label={t("language")}
           style={{
-            padding: "8px",
+            padding: "7px",
             borderRadius: "8px",
             border: "none",
             fontWeight: "bold",
@@ -121,7 +121,7 @@ function Navbar() {
               color: "#b91c1c",
               backgroundColor: "white",
               fontWeight: "bold",
-              padding: "8px 20px",
+              padding: "8px 14px",
               borderRadius: "20px",
               fontSize: "14px",
             }}
@@ -136,7 +136,7 @@ function Navbar() {
               color: "#166534",
               backgroundColor: "white",
               fontWeight: "bold",
-              padding: "8px 20px",
+              padding: "8px 14px",
               borderRadius: "20px",
               fontSize: "14px",
             }}
