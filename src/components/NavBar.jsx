@@ -1,7 +1,31 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Sprout } from "lucide-react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "../firebase"; // Adjust this path if your firebase configuration file is located elsewhere
 
 function Navbar() {
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  // Listen to Firebase authentication state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe(); // Cleanup listener when component unmounts
+  }, []);
+
+  // Handle logging out
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate("/"); // Redirect to homepage after logging out
+    } catch (error) {
+      console.error("Logout Error:", error);
+    }
+  };
+
   const linkStyle = {
     textDecoration: "none",
     color: "white",
@@ -9,59 +33,101 @@ function Navbar() {
     fontSize: "15px",
     padding: "8px 12px",
     borderRadius: "8px",
-    transition: "background-color 0.2s"
+    whiteSpace: "nowrap",
   };
 
   return (
-    <nav style={{
-      backgroundColor: "#166534", // Dark green theme
-      padding: "16px 24px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between", // Pushes logo to left, links to right
-      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-      position: "sticky",
-      top: 0,
-      zIndex: 50
-    }}>
-      
-      {/* LEFT SIDE: Logo & App Name */}
-      <Link to="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none", color: "white" }}>
-        <div style={{ backgroundColor: "white", padding: "6px", borderRadius: "50%", color: "#166534", display: "flex" }}>
+    <nav
+      style={{
+        backgroundColor: "#166534",
+        padding: "16px 24px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+      }}
+    >
+      <Link
+        to="/"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          textDecoration: "none",
+          color: "white",
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "6px",
+            borderRadius: "50%",
+            color: "#166534",
+            display: "flex",
+          }}
+        >
           <Sprout size={24} />
         </div>
-        <span style={{ fontSize: "20px", fontWeight: "bold", letterSpacing: "0.5px" }}>AgroShield</span>
+
+        <span
+          style={{
+            fontSize: "20px",
+            fontWeight: "bold",
+            letterSpacing: "0.5px",
+          }}
+        >
+          AgroShield
+        </span>
       </Link>
 
-      {/* RIGHT SIDE: Navigation Links & Login Button */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        
-        {/* Standard Links */}
         <Link to="/" style={linkStyle}>Dashboard</Link>
         <Link to="/profile" style={linkStyle}>My Farm</Link>
         <Link to="/report" style={linkStyle}>Diagnosis</Link>
         <Link to="/community" style={linkStyle}>Community</Link>
         <Link to="/support" style={linkStyle}>Nearby Support</Link>
-        
-        {/* THE NEW LOGIN BUTTON (Added right here at the end!) */}
-        <Link to="/auth" style={{
-          textDecoration: "none",
-          color: "#166534",
-          backgroundColor: "white", 
-          fontWeight: "bold",
-          padding: "8px 20px",
-          borderRadius: "20px",
-          marginLeft: "12px", // Adds a little extra space before the login button
-          fontSize: "14px",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-          transition: "transform 0.2s"
-        }}
-        onMouseOver={(e) => e.target.style.transform = "scale(1.05)"}
-        onMouseOut={(e) => e.target.style.transform = "scale(1)"}
-        >
-          Farmer Login
-        </Link>
+        <Link to="/history" style={linkStyle}>Health History</Link>
 
+        {/* CONDITIONAL RENDER: Show Logout if logged in, otherwise show Login */}
+        {user ? (
+          <button
+            onClick={handleLogout}
+            style={{
+              border: "none",
+              cursor: "pointer",
+              color: "#ef4444", // Red text to indicate logout
+              backgroundColor: "white",
+              fontWeight: "bold",
+              padding: "8px 20px",
+              borderRadius: "20px",
+              marginLeft: "12px",
+              fontSize: "14px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Logout
+          </button>
+        ) : (
+          <Link
+            to="/auth"
+            style={{
+              textDecoration: "none",
+              color: "#166534",
+              backgroundColor: "white",
+              fontWeight: "bold",
+              padding: "8px 20px",
+              borderRadius: "20px",
+              marginLeft: "12px",
+              fontSize: "14px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Farmer Login
+          </Link>
+        )}
       </div>
     </nav>
   );

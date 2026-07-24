@@ -23,7 +23,8 @@ function App() {
           <Route path="/crop-calendar" element={<CropCalendar />} />
          <Route path="/report" element={<ReportProblem />} />
           <Route path="/alerts" element={<Alerts />} />
-          <Route path="/health-history" element={<HealthHistory />} />
+          <Route path="/history" element={<HealthHistory />} />
+<Route path="/health-history" element={<HealthHistory />} />
         <Route path="/support" element={<Experts />} />
           <Route path="/community" element={<Community />} />
           <Route path="/auth" element={<Auth />} />
