@@ -1,133 +1,117 @@
 import { useState } from "react";
+import { MessageCircle, ThumbsUp, User, Send } from "lucide-react";
 
 function Community() {
+  const [newPost, setNewPost] = useState("");
+  
+  // Dummy data to make the UI look alive for the hackathon demo
   const [posts, setPosts] = useState([
     {
       id: 1,
-      farmer: "Ravi Kumar",
-      crop: "Rice",
-      question: "My rice leaves are turning yellow. What should I check first?",
-      replies: 3,
+      author: "Rajesh Kumar",
+      time: "2 hours ago",
+      content: "Has anyone tried the new organic pesticide for tomato blight? I am seeing spots on my lower leaves and want to act fast.",
+      likes: 12,
+      replies: 4,
     },
     {
       id: 2,
-      farmer: "Sunita Patil",
-      crop: "Tomato",
-      question: "Has anyone faced whitefly problems in tomato this season?",
-      replies: 5,
+      author: "Amit Singh",
+      time: "5 hours ago",
+      content: "Just harvested my wheat crop! The AgroShield calendar reminders really helped me time the irrigation perfectly this season.",
+      likes: 34,
+      replies: 2,
     },
+    {
+      id: 3,
+      author: "Priya Sharma",
+      time: "1 day ago",
+      content: "Warning for farmers in the Pune district: Heavy unseasonal rain expected this weekend. Make sure to cover your harvested crops!",
+      likes: 89,
+      replies: 15,
+    }
   ]);
 
-  const [crop, setCrop] = useState("");
-  const [question, setQuestion] = useState("");
+  function handlePostSubmit(e) {
+    e.preventDefault();
+    if (!newPost.trim()) return;
 
-  function addPost(event) {
-    event.preventDefault();
-
-    if (!crop || !question.trim()) {
-      return;
-    }
-
-    const newPost = {
+    // Add the new post to the top of the feed temporarily
+    const post = {
       id: Date.now(),
-      farmer: "You",
-      crop,
-      question,
+      author: "You (Demo User)",
+      time: "Just now",
+      content: newPost,
+      likes: 0,
       replies: 0,
     };
 
-    setPosts([newPost, ...posts]);
-    setCrop("");
-    setQuestion("");
+    setPosts([post, ...posts]);
+    setNewPost("");
   }
 
   return (
-    <div style={{ maxWidth: "850px", margin: "0 auto" }}>
-      <h1>Farmer Community</h1>
-      <p>Ask questions, share experiences, and learn from other farmers.</p>
+    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
+      <div style={{ marginBottom: "24px" }}>
+        <h1 style={{ color: "#14532d", margin: "0 0 8px 0" }}>Farmer Community</h1>
+        <p style={{ color: "#4b5563", margin: 0 }}>Ask questions, share advice, and connect with local farmers.</p>
+      </div>
 
-      <form
-        onSubmit={addPost}
-        style={{
-          marginTop: "24px",
-          padding: "22px",
-          border: "1px solid #d1d5db",
-          borderRadius: "12px",
-          display: "grid",
-          gap: "14px",
-        }}
+      {/* CREATE POST BOX */}
+      <form 
+        onSubmit={handlePostSubmit}
+        style={{ backgroundColor: "white", padding: "20px", borderRadius: "12px", border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)", marginBottom: "30px" }}
       >
-        <h2 style={{ margin: 0, color: "#166534" }}>Ask the community</h2>
-
-        <select
-          value={crop}
-          onChange={(event) => setCrop(event.target.value)}
-          style={{ padding: "12px" }}
-        >
-          <option value="">Select crop</option>
-          <option>Rice</option>
-          <option>Wheat</option>
-          <option>Cotton</option>
-          <option>Tomato</option>
-          <option>Potato</option>
-        </select>
-
         <textarea
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Write your crop-related question..."
-          rows="4"
-          style={{ padding: "12px", resize: "vertical" }}
+          value={newPost}
+          onChange={(e) => setNewPost(e.target.value)}
+          placeholder="What's on your mind? Ask the community..."
+          style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #d1d5db", minHeight: "100px", resize: "vertical", boxSizing: "border-box", marginBottom: "12px", fontFamily: "inherit" }}
         />
-
-        <button
-          type="submit"
-          style={{
-            backgroundColor: "#166534",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            padding: "12px",
-            fontSize: "16px",
-            cursor: "pointer",
-          }}
-        >
-          Post Question
-        </button>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button 
+            type="submit"
+            style={{ backgroundColor: "#166534", color: "white", padding: "10px 20px", borderRadius: "8px", border: "none", fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}
+          >
+            <Send size={18} />
+            Post Question
+          </button>
+        </div>
       </form>
 
-      <div style={{ display: "grid", gap: "16px", marginTop: "28px" }}>
+      {/* COMMUNITY FEED */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         {posts.map((post) => (
-          <article
-            key={post.id}
-            style={{
-              padding: "20px",
-              border: "1px solid #d1d5db",
-              borderRadius: "12px",
-              backgroundColor: "white",
-            }}
-          >
-            <p style={{ color: "#166534", fontWeight: "bold", marginTop: 0 }}>
-              {post.farmer} • {post.crop}
+          <div key={post.id} style={{ backgroundColor: "white", padding: "20px", borderRadius: "12px", border: "1px solid #e5e7eb", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}>
+            
+            {/* Author Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+              <div style={{ backgroundColor: "#dcfce7", padding: "10px", borderRadius: "50%", color: "#166534" }}>
+                <User size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", color: "#1f2937" }}>{post.author}</h3>
+                <span style={{ fontSize: "12px", color: "#6b7280" }}>{post.time}</span>
+              </div>
+            </div>
+
+            {/* Post Content */}
+            <p style={{ color: "#374151", lineHeight: "1.5", marginBottom: "16px" }}>
+              {post.content}
             </p>
 
-            <p style={{ fontSize: "17px" }}>{post.question}</p>
-
-            <button
-              onClick={() => alert("Replies section will be connected later.")}
-              style={{
-                color: "#166534",
-                backgroundColor: "#dcfce7",
-                border: "none",
-                borderRadius: "8px",
-                padding: "9px 12px",
-                cursor: "pointer",
-                fontWeight: "bold",
-              }}
-            >
-              💬 {post.replies} Replies
-            </button>
-          </article>
+            {/* Interaction Buttons */}
+            <div style={{ display: "flex", gap: "20px", borderTop: "1px solid #f3f4f6", paddingTop: "12px" }}>
+              <button style={{ background: "none", border: "none", color: "#6b7280", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", padding: 0 }}>
+                <ThumbsUp size={18} />
+                <span style={{ fontSize: "14px", fontWeight: "500" }}>{post.likes} Likes</span>
+              </button>
+              <button style={{ background: "none", border: "none", color: "#6b7280", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", padding: 0 }}>
+                <MessageCircle size={18} />
+                <span style={{ fontSize: "14px", fontWeight: "500" }}>{post.replies} Replies</span>
+              </button>
+            </div>
+          </div>
         ))}
       </div>
     </div>
