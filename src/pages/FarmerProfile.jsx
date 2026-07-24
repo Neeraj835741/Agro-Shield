@@ -1,7 +1,14 @@
-import { useState } from "react";
-import { saveFarmProfile } from "../services/farmService";
+import { useState, useEffect } from "react";
+// 👉 Notice we imported the new getFarmProfile function
+import { saveFarmProfile, getFarmProfile } from "../services/farmService";
+import { auth } from "../firebase"; 
+import { onAuthStateChanged } from "firebase/auth"; 
 
 function FarmerProfile() {
+  const [user, setUser] = useState(null); 
+  const [loadingAuth, setLoadingAuth] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false); // Tracks if they already have a profile
+
   const [formData, setFormData] = useState({
     farmerName: "",
     language: "",
@@ -11,8 +18,34 @@ function FarmerProfile() {
     soilPh: "",
   });
 
-  const [status, setStatus] = useState("idle"); // idle, loading, success, error
+  const [status, setStatus] = useState("idle"); 
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // 👉 MAGIC HAPPENS HERE: Fetch existing data when they log in
+        const existingData = await getFarmProfile();
+        
+        if (existingData && existingData.farmerName) {
+          // Fill the form with their saved data
+          setFormData({
+            farmerName: existingData.farmerName || "",
+            language: existingData.language || "",
+            location: existingData.location || "",
+            crop: existingData.crop || "",
+            sowingDate: existingData.sowingDate || "",
+            soilPh: existingData.soilPh || "",
+          });
+          setIsUpdating(true); // Changes button text to "Update"
+        }
+      }
+      setLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -22,23 +55,21 @@ function FarmerProfile() {
     }));
   }
 
-  // Connects to your teammate's Firebase function
   async function handleSubmit(event) {
     event.preventDefault();
+    if (!user) return; 
+
     setStatus("loading");
     setMessage("");
 
     try {
-      // This now sends the data directly to Firestore!
+      
       await saveFarmProfile(formData);
       
       setStatus("success");
-      setMessage("Profile saved to Firestore successfully!");
+      setMessage(isUpdating ? "Profile updated successfully!" : "Profile securely saved!");
+      setIsUpdating(true);
       
-      // Clear the form after a successful save
-      setFormData({
-        farmerName: "", language: "", location: "", crop: "", sowingDate: "", soilPh: ""
-      });
     } catch (error) {
       console.error("Firebase Error:", error);
       setStatus("error");
@@ -46,10 +77,25 @@ function FarmerProfile() {
     }
   }
 
+  if (loadingAuth) {
+    return <p style={{ padding: "20px", textAlign: "center" }}>Loading profile...</p>;
+  }
+
+  if (!user) {
+    return (
+      <div style={{ maxWidth: "700px", margin: "50px auto", padding: "20px", textAlign: "center" }}>
+        <h1 style={{ color: "#14532d" }}>Access Denied</h1>
+        <p style={{ color: "#4b5563" }}>Please log in to view and edit your private farm profile.</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: "700px", margin: "0 auto", padding: "20px" }}>
-      <h1 style={{ color: "#14532d" }}>My Farm Profile</h1>
-      <p style={{ color: "#4b5563" }}>Add your farm details to receive better crop guidance.</p>
+      <h1 style={{ color: "#14532d" }}>{isUpdating ? "Update Farm Profile" : "My Farm Profile"}</h1>
+      <p style={{ color: "#4b5563" }}>
+        {isUpdating ? "Keep your details up to date for the best guidance." : "Add your farm details to receive better crop guidance."}
+      </p>
 
       <form
         onSubmit={handleSubmit}
@@ -113,10 +159,9 @@ function FarmerProfile() {
             marginTop: "10px"
           }}
         >
-          {status === "loading" ? "Saving to Database..." : "Save Farm Profile"}
+          {status === "loading" ? "Saving..." : (isUpdating ? "Update Farm Profile" : "Save Farm Profile")}
         </button>
 
-        {/* Dynamic Success/Error Message */}
         {message && (
           <div style={{ 
             backgroundColor: status === "success" ? "#dcfce7" : "#fee2e2", 

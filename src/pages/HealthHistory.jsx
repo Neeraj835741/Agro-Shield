@@ -1,127 +1,156 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getHealthReports } from "../services/historyService";
+import { auth } from "../firebase"; // 👉 Added this import
+import { onAuthStateChanged } from "firebase/auth"; // 👉 Added this import
+
+function formatDate(value) {
+  if (!value) return "Just now";
+
+  if (typeof value.toDate === "function") {
+    return value.toDate().toLocaleString();
+  }
+
+  return new Date(value).toLocaleString();
+}
 
 function HealthHistory() {
-  const [selectedReport, setSelectedReport] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [user, setUser] = useState(null); // 👉 Added state to track logged-in user
 
-  const reports = [
-    {
-      id: 1,
-      date: "15 July 2026",
-      crop: "Rice",
-      issue: "Yellow leaves",
-      status: "Improving",
-      advice: "Maintain proper drainage and monitor leaf color.",
-    },
-    {
-      id: 2,
-      date: "03 July 2026",
-      crop: "Tomato",
-      issue: "Whitefly symptoms",
-      status: "Needs attention",
-      advice: "Inspect leaf undersides and consult an expert for treatment.",
-    },
-    {
-      id: 3,
-      date: "20 June 2026",
-      crop: "Cotton",
-      issue: "Leaf spots",
-      status: "Resolved",
-      advice: "Remove affected leaves and keep the field clean.",
-    },
-  ];
+  useEffect(() => {
+    // 👉 1. Listen for who is logged in
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // 👉 2. If they are logged in, fetch ONLY their reports using their UID
+        try {
+          const savedReports = await getHealthReports(currentUser.uid);
+          setReports(savedReports);
+        } catch (error) {
+          console.error(error);
+          setErrorMessage("Unable to load crop health history.");
+        }
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return <p style={{ padding: "20px" }}>Loading crop health history...</p>;
+  }
+
+  // 👉 3. If no one is logged in, show this message instead of an error
+  if (!user) {
+    return (
+      <div style={{ maxWidth: "900px", margin: "0 auto", padding: "20px", textAlign: "center" }}>
+        <h1 style={{ color: "#14532d" }}>Access Denied</h1>
+        <p style={{ color: "#4b5563" }}>Please log in to view your private crop health history.</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ maxWidth: "850px", margin: "0 auto" }}>
-      <h1>Crop Health History</h1>
-      <p>Review your previous crop problem reports and guidance.</p>
+    <div style={{ maxWidth: "900px", margin: "0 auto", padding: "20px" }}>
+      <h1 style={{ color: "#14532d" }}>Crop Health History</h1>
+      <p style={{ color: "#4b5563" }}>
+        Review previously reported crop symptoms and diagnosis guidance.
+      </p>
 
-      <div style={{ display: "grid", gap: "16px", marginTop: "25px" }}>
-        {reports.map((report) => (
-          <article
-            key={report.id}
-            style={{
-              border: "1px solid #A50021",
-              borderRadius: "12px",
-              padding: "20px",
-              backgroundColor: "white",
-            }}
-          >
-            <div
+      {errorMessage && (
+        <p style={{ color: "#b91c1c", fontWeight: "bold" }}>
+          {errorMessage}
+        </p>
+      )}
+
+      {reports.length === 0 ? (
+        <div
+          style={{
+            marginTop: "24px",
+            padding: "20px",
+            borderRadius: "12px",
+            backgroundColor: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+          }}
+        >
+          No crop health reports have been saved yet.
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gap: "16px",
+            marginTop: "24px",
+          }}
+        >
+          {reports.map((report) => (
+            <article
+              key={report.id}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "15px",
-                flexWrap: "wrap",
+                backgroundColor: "white",
+                border: "1px solid #d1d5db",
+                borderRadius: "12px",
+                padding: "20px",
               }}
             >
-              <div>
-                <h2
-  style={{
-    marginTop: 0,
-    color: "#166534",
-    fontWeight: "800",
-    fontSize: "24px",
-  }}
->
-  {report.crop}
-</h2>
-                <p>
-                  <strong>Reported issue:</strong> {report.issue}
-                </p>
-                <p>
-                  <strong>Date:</strong> {report.date}
-                </p>
-              </div>
-
-              <span
-                style={{
-                  height: "fit-content",
-                  padding: "8px 12px",
-                  borderRadius: "20px",
-                  backgroundColor:
-                    report.status === "Resolved" ? "#dcfce7" : "#fef3c7",
-                  color: report.status === "Resolved" ? "#166534" : "#92400e",
-                  fontWeight: "bold",
-                }}
-              >
-                {report.status}
-              </span>
-            </div>
-
-            <button
-              onClick={() =>
-                setSelectedReport(
-                  selectedReport === report.id ? null : report.id
-                )
-              }
-              style={{
-                backgroundColor: "#166534",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                padding: "10px 14px",
-                cursor: "pointer",
-              }}
-            >
-              {selectedReport === report.id ? "Hide Details" : "View Details"}
-            </button>
-
-            {selectedReport === report.id && (
               <div
                 style={{
-                  marginTop: "15px",
-                  padding: "15px",
-                  backgroundColor: "#f0fdf4",
-                  borderRadius: "8px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  flexWrap: "wrap",
                 }}
               >
-                <strong>Previous guidance:</strong>
-                <p>{report.advice}</p>
+                <h2 style={{ margin: 0, color: "#14532d" }}>
+                  {report.crop || "Crop report"}
+                </h2>
+
+                <span style={{ color: "#6b7280", fontSize: "14px" }}>
+                  {formatDate(report.createdAt)}
+                </span>
               </div>
-            )}
-          </article>
-        ))}
-      </div>
+
+              <p>
+                <strong>Possible issue:</strong>{" "}
+                {report.diagnosis || "No clear match"}
+              </p>
+
+              <p>
+                <strong>Symptoms:</strong>{" "}
+                {report.symptoms?.join(", ") || "Not recorded"}
+              </p>
+
+              {report.severity && (
+                <p>
+                  <strong>Severity:</strong> {report.severity}
+                </p>
+              )}
+
+              {report.treatment && (
+                <p>
+                  <strong>Treatment:</strong> {report.treatment}
+                </p>
+              )}
+
+              {report.prevention && (
+                <p>
+                  <strong>Prevention:</strong> {report.prevention}
+                </p>
+              )}
+
+              {report.safetyNote && (
+                <p style={{ color: "#b45309" }}>
+                  <strong>Safety note:</strong> {report.safetyNote}
+                </p>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
