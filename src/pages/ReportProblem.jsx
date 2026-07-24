@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 // Import commonSymptoms replacing the hard-coded symptomList
 import { commonSymptoms } from "../data/symptoms";
 
@@ -6,6 +6,7 @@ import { commonSymptoms } from "../data/symptoms";
 import { diagnoseCrop } from "../utils/diagnosisUtils";
 import { getSeasonFromDate } from "../utils/seasonUtils";
 import { saveHealthReport } from "../services/reportService";
+import { startVoiceRecognition } from "../utils/voiceUtils";
 
 function ReportProblem() {
   const [selectedCrop, setSelectedCrop] = useState("");
@@ -17,11 +18,62 @@ function ReportProblem() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
 
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef(null);
+
   // Handle local image upload preview ONLY 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRecordVoice = () => {
+    // 1. If we are already recording, force it to stop immediately!
+    if (isRecording && recognitionRef.current) {
+      recognitionRef.current.stop();
+      return; // Exit early so we don't start a new one
+    }
+
+    // 2. Otherwise, start a new recording session
+    try {
+      const recognitionInstance = startVoiceRecognition({
+        language: 'en-IN',
+        onStart: () => {
+          setIsRecording(true);
+        },
+        onResult: (transcript) => {
+          console.log("Heard:", transcript);
+          
+          if (transcript) {
+            const spokenWords = transcript.toLowerCase();
+            const matchedSymptoms = commonSymptoms.filter((symptom) => 
+              spokenWords.includes(symptom.toLowerCase())
+            );
+            
+            if (matchedSymptoms.length > 0) {
+              setSelectedSymptoms((prevSelected) => {
+                const allSymptoms = [...prevSelected, ...matchedSymptoms];
+                return [...new Set(allSymptoms)]; 
+              });
+            }
+          }
+        },
+        onError: (errorMessage) => {
+          console.error("Voice error:", errorMessage);
+        },
+        onEnd: () => {
+          setIsRecording(false);
+          recognitionRef.current = null; // Clear the memory when done
+        }
+      });
+
+      // 3. Save the active microphone session to our ref so we can stop it later
+      recognitionRef.current = recognitionInstance;
+
+    } catch (error) {
+      alert(error.message);
     }
   };
 
@@ -50,11 +102,8 @@ function ReportProblem() {
       const currentSeason = getSeasonFromDate(new Date());
 
       // Call diagnoseCrop with input parameters
-      const result = diagnoseCrop({
-        crop: selectedCrop,
-        symptoms: selectedSymptoms,
-        season: currentSeason,
-      });
+      // Pass the arguments separately instead of inside an object
+      const result = diagnoseCrop(selectedCrop, selectedSymptoms, currentSeason);
 
       // Display real diagnosis results
       setDiagnosisResult(result);
@@ -141,6 +190,24 @@ function ReportProblem() {
           )}
         </div>
 
+        <button 
+          type="button" 
+          onClick={handleRecordVoice}
+          disabled={isRecording}
+          style={{ 
+            padding: "8px 16px", 
+            backgroundColor: isRecording ? "#ef4444" : "#0284c7", // Turns red when recording!
+            color: "white", 
+            borderRadius: "8px", 
+            border: "none", 
+            marginBottom: "15px",
+            cursor: isRecording ? "not-allowed" : "pointer",
+            fontWeight: "bold"
+          }}
+        >
+          {isRecording ? "🔴 Listening... Click to stop" : "🎤 Record Voice"}
+        </button>
+
         {/* Submit Button */}
         <button
           type="submit"
@@ -195,5 +262,4 @@ function ReportProblem() {
     </div>
   );
 }
-
 export default ReportProblem;
