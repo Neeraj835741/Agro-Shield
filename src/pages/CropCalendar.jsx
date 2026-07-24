@@ -1,31 +1,45 @@
 import { useState } from "react";
+import { useLanguage } from "../context/LanguageContext";
 
 function CropCalendar() {
+  const { t } = useLanguage();
+
   const [crop, setCrop] = useState("");
   const [sowingDate, setSowingDate] = useState("");
-  const [season, setSeason] = useState("");
+  const [seasonKey, setSeasonKey] = useState("");
 
   function findSeason() {
     if (!sowingDate) {
-      setSeason("Please select a sowing date.");
+      setSeasonKey("selectSowingDateError");
       return;
     }
 
     const month = new Date(`${sowingDate}T00:00:00`).getMonth() + 1;
 
     if (month >= 6 && month <= 10) {
-      setSeason("Kharif Season");
+      setSeasonKey("kharifSeason");
     } else if (month === 4 || month === 5) {
-      setSeason("Zaid Season");
+      setSeasonKey("zaidSeason");
     } else {
-      setSeason("Rabi Season");
+      setSeasonKey("rabiSeason");
     }
   }
 
+  const crops = [
+    { value: "Rice", label: "rice" },
+    { value: "Wheat", label: "wheat" },
+    { value: "Maize", label: "maize" },
+    { value: "Cotton", label: "cotton" },
+    { value: "Tomato", label: "tomato" },
+    { value: "Potato", label: "potato" },
+  ];
+
+  const selectedCrop = crops.find((item) => item.value === crop);
+
   return (
     <div style={{ maxWidth: "700px", margin: "0 auto" }}>
-      <h1>Crop Calendar</h1>
-      <p>Find the crop season based on your sowing date.</p>
+      <h1>{t("calendarTitle")}</h1>
+      <p>{t("calendarDescription")}</p>
 
       <div
         style={{
@@ -42,17 +56,17 @@ function CropCalendar() {
           onChange={(event) => setCrop(event.target.value)}
           style={{ padding: "12px" }}
         >
-          <option value="">Select crop</option>
-          <option>Rice</option>
-          <option>Wheat</option>
-          <option>Maize</option>
-          <option>Cotton</option>
-          <option>Tomato</option>
-          <option>Potato</option>
+          <option value="">{t("selectCrop")}</option>
+
+          {crops.map((item) => (
+            <option key={item.value} value={item.value}>
+              {t(item.label)}
+            </option>
+          ))}
         </select>
 
         <label>
-          Sowing date
+          {t("sowingDate")}
           <input
             type="date"
             value={sowingDate}
@@ -73,10 +87,10 @@ function CropCalendar() {
             cursor: "pointer",
           }}
         >
-          Identify Season
+          {t("identifySeason")}
         </button>
 
-        {season && (
+        {seasonKey && (
           <div
             style={{
               backgroundColor: "#dcfce7",
@@ -86,8 +100,13 @@ function CropCalendar() {
               fontWeight: "bold",
             }}
           >
-            {crop && <p>Selected crop: {crop}</p>}
-            <p>{season}</p>
+            {selectedCrop && (
+              <p>
+                {t("selectedCrop")} {t(selectedCrop.label)}
+              </p>
+            )}
+
+            <p>{t(seasonKey)}</p>
           </div>
         )}
       </div>
